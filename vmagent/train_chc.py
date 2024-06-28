@@ -33,43 +33,39 @@ def make_env(N, cpu, mem, allow_release, double_thr=1e10):
 
 
 def run(envs, step_list, mac, mem, learner, eps, args, x, flag):
-    EP_R_DIC = {}
-    EP_A_DIC = {}
+    episode_reward = {}
+    episode_action = {}
 
-    tot_reward = np.array([0. for j in range(args.num_process)])
-    tot_lenth = np.array([0. for j in range(args.num_process)])
+    total_reward = np.array([0. for j in range(args.num_process)])
+    total_length = np.array([0. for j in range(args.num_process)])
     step = 0
-    stop_idxs = np.array([0 for j in range(args.num_process)])
+    stop_indices = np.array([0 for j in range(args.num_process)])
 
     # 初始化后面需要的lists
     avail = []
     feat = []
     obs = []
     state = []
-    TMP_STATE_LST = [[] for _ in range(args.num_process)]
-    TMP_ACTION_LST = [[] for _ in range(args.num_process)]
-    TMP_RETURN_LST = [[] for _ in range(args.num_process)]
-    remains = [[] for i in range(args.num_process)]
+    tmp_state = [[] for _ in range(args.num_process)]
+    tmp_action = [[] for _ in range(args.num_process)]
+    tmp_return = [[] for _ in range(args.num_process)]
+    remains = [[] for _ in range(args.num_process)]
+
+    prev_alives = envs.get_alives()
     while True:
         step += 1
-
-        prev_alives = envs.get_alives().copy()
         envs.update_alives()
         curr_alives = envs.get_alives().copy()
         if all(~curr_alives):
             if args.eps2 > 0:
                 for i in range(args.num_process):
-                    for j in range(len(TMP_STATE_LST[i])):
-                        key = TMP_STATE_LST[i][j]
-                        if key not in EP_R_DIC:
-                            EP_R_DIC[key] = TMP_RETURN_LST[i][-1] - TMP_RETURN_LST[i][j]
-                            EP_A_DIC[key] = TMP_ACTION_LST[i][j]
-                        elif EP_R_DIC[key] < TMP_RETURN_LST[i][-1] - TMP_RETURN_LST[i][j]:
-                            EP_R_DIC[key] = TMP_RETURN_LST[i][-1] - TMP_RETURN_LST[i][j]
-                            EP_A_DIC[key] = TMP_ACTION_LST[i][j]
+                    for j in range(len(tmp_state[i])):
+                        key = tmp_state[i][j]
+                        episode_reward[key] = tmp_return[i][-1] - tmp_return[i][j]
+                        episode_action[key] = tmp_action[i][j]
             left = np.sum(remains, axis=2).sum(1).sum(0)
-            print(tot_lenth)
-            return tot_lenth.mean(), tot_reward.mean(), \
+            print(total_length)
+            return total_length.mean(), total_reward.mean(), \
                 (2 * args.cpu * args.N * args.num_process - left[0]) / (2 * args.cpu * args.N * args.num_process), \
                 (2 * args.mem * args.N * args.num_process - left[1]) / (2 * args.mem * args.N * args.num_process)
 
@@ -77,18 +73,14 @@ def run(envs, step_list, mac, mem, learner, eps, args, x, flag):
             avail = envs.get_attr('avail')
             feat = envs.get_attr('req')
             obs = envs.get_attr('obs')
-            # state = {'obs': obs, 'feat': feat, 'avail': avail}
 
         if curr_alives.tolist() != prev_alives.tolist():
-            indexes = []
             for i in range(len(curr_alives)):
-                if prev_alives[i] and curr_alives[i]:
-                    indexes.append(True)
-                if prev_alives[i] and curr_alives[i]:
-                    indexes.append(False)
-            avail = avail[indexes]
-            feat = feat[indexes]
-            obs = obs[indexes]
+                if prev_alives[i]:
+                    indices.append(curr_alives[i])
+            avail = avail[indices]
+            feat = feat[indices]
+            obs = obs[indices]
 
         state = {'obs': obs, 'feat': feat, 'avail': avail}
         action = mac.select_actions(state, flag=flag, eps=eps)
@@ -97,39 +89,44 @@ def run(envs, step_list, mac, mem, learner, eps, args, x, flag):
             for j in range(action.shape[0]):
                 if action[j] == -1:
                     key = sha1(obs[j]).hexdigest() + sha1(feat[j]).hexdigest()
-                    if key in EP_A_DIC.keys() and avail[j][EP_A_DIC[key]] == 1:
-                        action[j] = EP_A_DIC[key]
+                    if key in episode_action.keys() and avail[j][episode_action[key]] == 1:
+                        action[j] = episode_action[key]
                     else:
                         action[j] = Categorical(th.from_numpy(np.float32(avail[j]))).sample()
 
         action_after, next_obs, reward, done, info = envs.step(action)
 
-        indexes = []
-        for i in range(len(curr_alives)):
-            if curr_alives[i]:
-                indexes.append(i)
-        for i in range(len(indexes)):
-            remains[indexes[i]] = next_obs[i]
+        # --------------------------------------------
+        # indexes = []
+        # for i in range(len(curr_alives)):
+        #     if curr_alives[i]:
+        #         indexes.append(i)
+        # for i in range(len(indexes)):
+        #     remains[indexes[i]] = next_obs[i]
 
-        stop_idxs[curr_alives] += 1
+        indices = np.where(curr_alives)[0]
+        remains[indices] = next_obs[curr_alives]
+        # ---------------------------------------------
+
+        stop_indices[curr_alives] += 1
 
         if args.eps2 > 0:
             k = 0
             for j in range(args.num_process):
                 if curr_alives[j]:
-                    TMP_STATE_LST[j].append(sha1(obs[k]).hexdigest() + sha1(feat[k]).hexdigest())
-                    TMP_ACTION_LST[j].append(action[k])
-                    if len(TMP_RETURN_LST[j]) > 0:
-                        TMP_RETURN_LST[j].append(reward[k] + TMP_RETURN_LST[j][-1])
+                    tmp_state[j].append(sha1(obs[k]).hexdigest() + sha1(feat[k]).hexdigest())
+                    tmp_action[j].append(action[k])
+                    if len(tmp_return[j]) > 0:
+                        tmp_return[j].append(reward[k] + tmp_return[j][-1])
                     else:
-                        TMP_RETURN_LST[j].append(reward[k])
+                        tmp_return[j].append(reward[k])
                     k += 1
 
         next_avail = info['avail']
         next_feat = info['feat']
 
-        tot_reward[curr_alives] += reward
-        tot_lenth[curr_alives] += 1
+        total_reward[curr_alives] += reward
+        total_length[curr_alives] += 1
 
         buf = {'obs': obs, 'feat': feat, 'avail': avail, 'action': action,
                'reward': reward, 'next_obs': next_obs, 'next_feat': next_feat,
@@ -139,6 +136,8 @@ def run(envs, step_list, mac, mem, learner, eps, args, x, flag):
         avail = next_avail
         feat = next_feat
         obs = info['obs']
+
+        prev_alives = curr_alives
 
 
 if __name__ == "__main__":
@@ -150,14 +149,14 @@ if __name__ == "__main__":
     parser.add_argument('--epoch', type=int, default=3000)
     parser.add_argument('--entropy', type=float, default=0.001)
     parser.add_argument('--tau', type=float, default=0.01)
-    parser.add_argument('--rew_fn', type=str, default='iden')
+    parser.add_argument('--rew-fn', type=str, default='iden')
     parser.add_argument('--memory', type=str, default='replay')
     parser.add_argument('--topk', type=int, default=5)
     parser.add_argument('--num-process', type=int, default=1)
     parser.add_argument('--eps2', type=float, default=0.6)
     parser.add_argument('--capacity', type=int, default=1000000)
     parser.add_argument('--train-n', type=int, default=5)
-    parser.add_argument('--batch_size', type=int, default=1024)
+    parser.add_argument('--batch-size', type=int, default=1024)
     parser.add_argument('--mac', type=str, default='vectormac')
 
     conf = parser.parse_args()
