@@ -1,21 +1,15 @@
-from config import Config
-import os
-import numpy as np
-from schedgym.sched_env import SchedEnv
-from schedgym.mySubproc_vec_env import SubprocVecEnv
 import argparse
-from controllers import REGISTRY as mac_REGISTRY
-from learners import REGISTRY as le_REGISTRY
-from components import REGISTRY as mem_REGISTRY
-from runx.logx import logx
-from hashlib import sha1
-import torch
-import pandas as pd
-import pdb
-import time
 import csv
-import pickle
+import os
+import time
 
+import numpy as np
+import torch
+from runx.logx import logx
+
+from config import Config
+from schedgym.mySubproc_vec_env import SubprocVecEnv
+from schedgym.sched_env import SchedEnv
 
 print(torch.cuda.is_available())
 

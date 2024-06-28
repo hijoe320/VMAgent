@@ -1,5 +1,3 @@
-import numpy as np
-
 def linear_decay(epoch, x, y):
     min_v, max_v = y[0], y[-1]
     start, end = x[0], x[-1]

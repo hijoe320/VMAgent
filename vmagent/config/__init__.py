@@ -1,6 +1,6 @@
-import collections
 import os
 import yaml
+from collections.abc import Mapping
 
 
 class ConfigError(Exception):
@@ -48,17 +48,16 @@ def __config_file_paths(env, alg):
     return paths
 
 
-
 def __update_dict(orig, update):
     """Deep update of a dictionary
     For each entry (k, v) in update such that both orig[k] and v are
-    dictionaries, orig[k] is recurisvely updated to v.
+    dictionaries, orig[k] is recursively updated to v.
     For all other entries (k, v), orig[k] is set to v.
     """
     for (key, value) in update.items():
         if (key in orig and
-            isinstance(value, collections.Mapping) and
-                isinstance(orig[key], collections.Mapping)):
+            isinstance(value, Mapping) and
+                isinstance(orig[key], Mapping)):
             __update_dict(orig[key], value)
         else:
             orig[key] = value

@@ -1,9 +1,9 @@
-import torch as th
-from modules.agents import REGISTRY as agent_REGISTRY
-from components.action_selectors import REGISTRY as action_REGISTRY
-import numpy as np
 import time
-import csv
+
+import torch as th
+from components.action_selectors import REGISTRY as action_REGISTRY
+from modules.agents import REGISTRY as agent_REGISTRY
+
 
 class VectorMAC:
     def __init__(self, args):

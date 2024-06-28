@@ -1,11 +1,16 @@
 import multiprocessing
-from collections import OrderedDict
-from typing import Sequence
+from typing import List, Type
 
-import gym
+import gymnasium as gym
+
 import numpy as np
+from stable_baselines3.common.vec_env.base_vec_env import VecEnv, CloudpickleWrapper
 
-from stable_baselines.common.vec_env.base_vec_env import VecEnv, CloudpickleWrapper
+from stable_baselines3.common.vec_env.base_vec_env import (
+    CloudpickleWrapper,
+    VecEnv,
+    VecEnvIndices
+)
 
 
 def _worker(remote, parent_remote, env_fn_wrapper):
@@ -146,5 +151,12 @@ class SubprocVecEnv(VecEnv):
 
     def env_method(self, method_name, *method_args, indices=None, **method_kwargs):
         pass
+
+    def env_is_wrapped(self, wrapper_class: Type[gym.Wrapper], indices: VecEnvIndices = None) -> List[bool]:
+        """Check if worker environments are wrapped with a given wrapper"""
+        target_remotes = self._get_target_remotes(indices)
+        for remote in target_remotes:
+            remote.send(("is_wrapped", wrapper_class))
+        return [remote.recv() for remote in target_remotes]
 
 

@@ -1,7 +1,8 @@
-from collections import namedtuple
 import random
+from collections import namedtuple
+
 import numpy as np
-from typing import Deque, Dict, List, Tuple
+
 Experience = namedtuple('Experience',
                         ('obs', 'action', 'reward', 'next_state', 'done'))
 

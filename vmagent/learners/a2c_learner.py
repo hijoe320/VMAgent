@@ -1,9 +1,10 @@
 import copy
+
 import torch as th
-from torch.optim import Adam
-import torch.nn.functional as F
-from torch.nn.utils import clip_grad_norm_
 from modules.critics import REGISTRY as critic_resigtry
+from torch.nn.utils import clip_grad_norm_
+from torch.optim import Adam
+
 
 class A2CLearner:
     def __init__(self, mac, args):

@@ -1,10 +1,6 @@
-from argparse import Action
-import pandas as pd
+import gymnasium as gym
 import numpy as np
-import random
-import gym
-from gym import spaces
-import json
+import pandas as pd
 
 
 def getData(path, double_thr=1e10, smallFilter=False):
@@ -176,6 +172,7 @@ class Server():
         return [[self.remain_cpu[0], self.remain_mem[0]],
                 [self.remain_cpu[1], self.remain_mem[1]]]
 
+
 class Cluster():
     def __init__(self, N, cpu, mem):
         self.N = N
@@ -305,8 +302,10 @@ class Cluster():
             allocation_rate.append(1-server.allo_rate(1,True))
         return np.mean(allocation_rate)
 
+
 class SchedEnv(gym.Env):
     metadata = {'render.modes': ['human']}
+
     def __init__(self, N, cpu, mem, path, render_path=None, allow_release=False, rew_fn='iden',double_thr=1e10, topk=3):
         '''
             N is the number of servers, cpu and mem are the attribute of the server
@@ -331,7 +330,6 @@ class SchedEnv(gym.Env):
         if render_path is not None:
             self.render_path = render_path
             self.isrender = True
-
 
     def get_property(self,):
         return self.N, self.cpu, self.mem
@@ -453,3 +451,6 @@ class SchedEnv(gym.Env):
         elif attr_name == 'req_step':
             return self.t
         return None
+
+    def env_is_wrapped(self):
+        return False

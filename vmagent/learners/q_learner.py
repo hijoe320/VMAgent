@@ -1,8 +1,8 @@
 import copy
+
 import torch as th
-from torch.optim import RMSprop, Adam
-import numpy as np
-import time
+from torch.optim import Adam
+
 
 class QLearner:
     def __init__(self, mac, args):

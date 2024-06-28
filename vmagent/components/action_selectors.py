@@ -1,6 +1,5 @@
 import torch as th
 from torch.distributions import Categorical
-import numpy as np
 
 REGISTRY = {}
 
